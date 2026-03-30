@@ -37,7 +37,7 @@
     </div>
 
     <div id="vault-section">
-        <p id="user-info" style="text-align: center; font-size: 14px; color: #7f8c8d;"></p>
+        <p id="user-info" style="text-align: center; font-size: 14px; color: #27ae60; font-weight: bold;"></p>
         <input type="text" id="mainData" placeholder="Data Baru...">
         <textarea id="commentData" placeholder="Keterangan" rows="2"></textarea>
         <button class="btn-save" id="btnSave" onclick="sendToGoogle()">
@@ -54,19 +54,44 @@
         </div>
 
         <div id="results"></div>
-        <button class="btn-logout" onclick="logout()">Logout</button>
+        <button class="btn-logout" onclick="logout()">Logout / Ganti Akun</button>
     </div>
 </div>
 
 <script>
     const scriptURL = "https://script.google.com/macros/s/AKfycbyGOqGPqV8Nj_A0ZyYtYuD1wDGxq3DHxDHVY3Nwtzyu5xpi7dzvBApbMZ-KC2tyWaERzw/exec";
 
-    function handleCredentialResponse(response) {
-        document.getElementById('login-section').style.display = 'none';
-        document.getElementById('vault-section').style.display = 'block';
+    // Fungsi untuk membaca data email dari Google
+    function decodeJwtResponse(token) {
+        let base64Url = token.split('.')[1];
+        let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        let jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        return JSON.parse(jsonPayload);
     }
 
-    function logout() { location.reload(); }
+    function handleCredentialResponse(response) {
+        const responsePayload = decodeJwtResponse(response.credential);
+        
+        // FILTER KEAMANAN: Masukkan email Anda di sini
+        const emailTersertifikasi = "dwilistyonos@gmail.com";
+
+        if (responsePayload.email === emailTersertifikasi) {
+            document.getElementById('login-section').style.display = 'none';
+            document.getElementById('vault-section').style.display = 'block';
+            document.getElementById('user-info').innerText = "Login sebagai: " + responsePayload.email;
+        } else {
+            alert("AKSES DITOLAK!\nAkun " + responsePayload.email + " tidak terdaftar di sistem.");
+            google.accounts.id.disableAutoSelect(); 
+            location.reload(); // Refresh untuk logout
+        }
+    }
+
+    function logout() { 
+        google.accounts.id.disableAutoSelect();
+        location.reload(); 
+    }
 
     async function sendToGoogle() {
         const data = document.getElementById('mainData').value;
@@ -83,7 +108,7 @@
             alert("Tersimpan di Cloud!");
             document.getElementById('mainData').value = "";
             document.getElementById('commentData').value = "";
-        } catch (e) { alert("Error!"); } finally {
+        } catch (e) { alert("Gagal menyimpan."); } finally {
             btn.disabled = false; loader.style.display = "none"; txt.innerText = "SIMPAN KE DRIVE";
         }
     }
@@ -118,4 +143,3 @@
 </script>
 </body>
 </html>
-
