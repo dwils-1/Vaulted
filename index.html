@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vault Cloud Secure</title>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <style>
+        :root { --primary: #2c3e50; --accent: #27ae60; --cloud: #3498db; }
+        body { font-family: 'Segoe UI', sans-serif; background: #eef2f3; padding: 15px; margin: 0; }
+        .container { max-width: 500px; margin: auto; background: white; padding: 25px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        h2 { text-align: center; color: var(--primary); }
+        #login-section { text-align: center; padding: 20px; }
+        #vault-section { display: none; }
+        input, textarea { width: 100%; padding: 12px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
+        button { width: 100%; padding: 14px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; color: white; transition: 0.3s; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .btn-save { background: var(--accent); margin-bottom: 20px; }
+        .btn-search { background: var(--cloud); }
+        .btn-logout { background: #e74c3c; margin-top: 20px; font-size: 12px; padding: 8px; width: auto; margin-left: auto; margin-right: auto; }
+        .spinner { width: 18px; height: 18px; border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: #fff; animation: spin 0.8s linear infinite; display: none; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .note-item { background: #f8f9fa; padding: 15px; border-left: 5px solid var(--cloud); margin-top: 15px; border-radius: 8px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Vault Cloud</h2>
+
+    <div id="login-section">
+        <p>Silakan login untuk mengakses Vault</p>
+        <div id="g_id_onload"
+             data-client_id="298217813815-3bap2i5ckf9rf7vviuf8ik7qs3un69eb.apps.googleusercontent.com"
+             data-callback="handleCredentialResponse">
+        </div>
+        <div class="g_id_signin" data-type="standard"></div>
+    </div>
+
+    <div id="vault-section">
+        <p id="user-info" style="text-align: center; font-size: 14px; color: #7f8c8d;"></p>
+        <input type="text" id="mainData" placeholder="Data Baru...">
+        <textarea id="commentData" placeholder="Keterangan" rows="2"></textarea>
+        <button class="btn-save" id="btnSave" onclick="sendToGoogle()">
+            <div id="saveLoader" class="spinner"></div>
+            <span id="saveText">SIMPAN KE DRIVE</span>
+        </button>
+
+        <div style="border-top: 2px solid #eee; padding-top: 20px; margin-top: 10px;">
+            <input type="text" id="searchInput" placeholder="Cari kata kunci di Drive...">
+            <button class="btn-search" id="btnSearch" onclick="searchInCloud()">
+                <div id="searchLoader" class="spinner"></div>
+                <span id="searchText">CARI DI DRIVE</span>
+            </button>
+        </div>
+
+        <div id="results"></div>
+        <button class="btn-logout" onclick="logout()">Logout</button>
+    </div>
+</div>
+
+<script>
+    const scriptURL = "https://script.google.com/macros/s/AKfycbyGOqGPqV8Nj_A0ZyYtYuD1wDGxq3DHxDHVY3Nwtzyu5xpi7dzvBApbMZ-KC2tyWaERzw/exec";
+
+    function handleCredentialResponse(response) {
+        document.getElementById('login-section').style.display = 'none';
+        document.getElementById('vault-section').style.display = 'block';
+    }
+
+    function logout() { location.reload(); }
+
+    async function sendToGoogle() {
+        const data = document.getElementById('mainData').value;
+        const comment = document.getElementById('commentData').value;
+        const btn = document.getElementById('btnSave');
+        const loader = document.getElementById('saveLoader');
+        const txt = document.getElementById('saveText');
+
+        if (!data) return alert("Data kosong!");
+        btn.disabled = true; loader.style.display = "block"; txt.innerText = "MENYIMPAN...";
+
+        try {
+            await fetch(scriptURL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ content: data, comment: comment }) });
+            alert("Tersimpan di Cloud!");
+            document.getElementById('mainData').value = "";
+            document.getElementById('commentData').value = "";
+        } catch (e) { alert("Error!"); } finally {
+            btn.disabled = false; loader.style.display = "none"; txt.innerText = "SIMPAN KE DRIVE";
+        }
+    }
+
+    async function searchInCloud() {
+        const query = document.getElementById('searchInput').value.trim();
+        const container = document.getElementById('results');
+        const btn = document.getElementById('btnSearch');
+        const loader = document.getElementById('searchLoader');
+        const txt = document.getElementById('searchText');
+
+        if (!query) return alert("Ketik kata kunci!");
+        container.innerHTML = ""; btn.disabled = true; loader.style.display = "block"; txt.innerText = "MENCARI...";
+
+        try {
+            const response = await fetch(`${scriptURL}?q=${encodeURIComponent(query)}`);
+            const data = await response.json();
+            if (data.length === 0) {
+                container.innerHTML = "<p style='text-align:center; color:#999; margin-top:20px;'>Tidak ada hasil.</p>";
+            } else {
+                container.innerHTML = data.map(n => `
+                    <div class="note-item">
+                        <span style="font-family:monospace; font-weight:bold; color:#d35400; display:block;">${n.content}</span>
+                        <span style="font-size:0.85em; color:#666;">${n.comment}</span>
+                    </div>
+                `).join('');
+            }
+        } catch (e) { alert("Gagal mengambil data."); } finally {
+            btn.disabled = false; loader.style.display = "none"; txt.innerText = "CARI DI DRIVE";
+        }
+    }
+</script>
+</body>
+</html>
+
